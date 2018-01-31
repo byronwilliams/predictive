@@ -1,0 +1,198 @@
+<head><link rel="stylesheet" src="/static/dygraph.min.css" />
+<meta http-equiv="refresh" content="60">
+<style>
+    body {
+        text-align: center;
+    }
+
+    body {
+        margin:0;
+        padding:0;
+        overflow: hidden;
+        background-color: #5cc09b;
+    }
+
+    .flexbox-container {
+        display: -ms-flex;
+        display: -webkit-flex;
+        display: flex;
+        height: 100vh;
+    }
+
+    .flexbox-container > div {
+        width: 50%;
+        // padding: 10px;
+    }
+
+    .flexbox-container > div:first-child {
+        // margin-right: 20px;
+    }
+
+    h1 {
+        margin:0;
+        padding:0
+    }
+
+
+    .graphHalf {
+        background-color: white;
+        height: 100vh;
+    }
+
+    #graphs {
+        width: 100%;
+    }
+
+    .statsHalf {
+        background-color: #5cc09b;
+        color: #FFF;
+        padding:50px;
+    }
+
+    .statsHalf.alarm {
+        background-color: red;
+    }
+
+    .statsHalf h1, .statsHalf span {
+        font-size: 40px;
+        padding-bottom:50px;
+    }
+
+    td {
+        color: white;
+        font-size:32px;
+        padding-bottom:20px;
+    }
+</style>
+</head>
+<div class="flexbox-container">
+    <div class="half graphHalf">
+        <div id="graphs"></div>
+    </div>
+    <div class="half statsHalf" id="statsHalf">
+            <h1>Gearbox Reliability Index</h1>
+            <table width="100%">
+                    <tr>
+                        <td width="60%">Current Reliability Index</td>
+                        <td><span id="ce"></span> (<span id="ma"></span>)</td>
+                    </tr>
+                    <tr>
+                        <td >Target Reliability Index</td>
+                        <td id="te"></td>
+                    </tr>
+                    <!-- <tr>
+                        <td >Minimum Reliable Index</td>
+                        <td id="mre"></td>
+                    </tr> -->
+                    <!-- <tr>
+                        <td>Time until failure</td>
+                        <td id="tuf"></td>
+                    </tr> -->
+                </table>
+    </div>
+
+</div>
+
+<!-- <div>
+    <div style="display: inline-block" id="graphs"></div>
+    <div style="display: inline-block">
+
+    </div>
+</div> -->
+
+
+<script src="/static/dygraph.min.js"></script>
+<script>
+    var sensors = {};
+    var sensorsGraphs = {};
+
+    setInterval(function() {
+        sensors = {};
+    }, 60000)
+
+    // var client = new EventSource("http://maintrain.figroll.io/t");
+    var client = new EventSource("/t");
+    client.onmessage = function (msg) {
+        var d = JSON.parse(msg.data);
+        if (!sensors[d.SensorID]) {
+            sensors[d.SensorID] = [];
+        };
+        console.log(new Date(d.published_at), d.published_at)
+        sensors[d.SensorID].push([new Date(d.published_at), parseFloat(d.data), d.MinAlarm, d.MaxAlarm]);
+
+        console.log(d);
+
+        document.getElementById("ce").innerText = parseFloat(d.data);
+        document.getElementById("ma").innerText = parseInt(d.ce);
+        document.getElementById("te").innerText = d.te;
+        // document.getElementById("mre").innerText = d.mre;
+
+        if(d.ce != 0 && (d.ce < 800 || d.ce > 1500)) {
+            document.getElementById("statsHalf").classList.add("alarm")
+        } else {
+            document.getElementById("statsHalf").classList.remove("alarm")
+        }
+
+        //if(d.alarm === "true") {
+        //    setTimeout(function() {
+        //        document.getElementById("statsHalf").classList.add("alarm");
+        //    }, 5000);
+        //}
+        // document.getElementById("prediction").innerText = d.tuf;
+
+        if (!sensorsGraphs[d.SensorID]) {
+            var gr = document.createElement("div");
+            gr.setAttribute("id", "graph_" + d.SensorID);
+            document.getElementById("graphs").appendChild(gr);
+            sensorsGraphs[d.SensorID] = new Dygraph(document.getElementById("graph_" + d.SensorID), sensorsGraphs[d.SensorID],
+                {
+                    width: document.getElementById("graphs").clientWidth,
+                    height: document.getElementsByClassName("graphHalf")[0].clientHeight,
+                    drawPoints: true,
+                    showRoller: true,
+                    strokeWidth: 1,
+                    valueRange: [0, 3000],
+                    labels: ['Time', 'Temperature', 'Min Alarm', 'Max Alarm']
+                });
+        }
+
+        sensorsGraphs[d.SensorID].updateOptions({ 'file': sensors[d.SensorID] });
+    }
+</script>
+<!--
+<script>
+        var sensors = {};
+        var sensorsGraphs = {};
+
+        var client = new EventSource("/t");
+        client.onmessage = function (msg) {
+            var d = JSON.parse(msg.data);
+            if (!sensors[d.SensorID]) {
+                sensors[d.SensorID] = [];
+            };
+
+            sensors[d.SensorID].push([new Date(), d.Reading, d.MinAlarm, d.MaxAlarm]);
+            if(d.SensorID === 113364) {
+                document.getElementById("ce").innerText = d.ce;
+                document.getElementById("te").innerText = d.te;
+                document.getElementById("mre").innerText = d.mre;
+                document.getElementById("tuf").innerText = d.tuf;
+            }
+
+            if (!sensorsGraphs[d.SensorID]) {
+                var gr = document.createElement("div");
+                gr.setAttribute("id", "graph_" + d.SensorID);
+                document.getElementById("graphs").appendChild(gr);
+                sensorsGraphs[d.SensorID] = new Dygraph(document.getElementById("graph_" + d.SensorID), sensorsGraphs[d.SensorID],
+                    {
+                        drawPoints: true,
+                        showRoller: true,
+                        valueRange: [10, 35],
+                        labels: ['Time', 'Temperature', 'Min Alarm', 'Max Alarm']
+                    });
+            }
+
+            sensorsGraphs[d.SensorID].updateOptions({ 'file': sensors[d.SensorID] });
+        }
+    </script>
+-->
